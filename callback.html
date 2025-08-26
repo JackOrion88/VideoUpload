@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+  <meta charset="utf-8"/>
+  <title>TikTok OAuth Callback</title>
+  <style>body{font-family:system-ui;margin:2rem;max-width:700px}</style>
+  <h1>TikTok OAuth Callback</h1>
+  <p>Code d'autorisation :</p>
+  <pre id="code" style="padding:12px;background:#f5f5f5;border:1px solid #ddd"></pre>
+  <script>
+    const p=new URLSearchParams(location.search);
+    const code=p.get("code")||"(absent)";
+    document.getElementById("code").textContent=code;
+  </script>
+</html>
