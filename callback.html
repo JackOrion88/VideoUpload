@@ -1,14 +1,120 @@
 <!doctype html>
-<html>
+<html lang="fr">
+<head>
   <meta charset="utf-8"/>
   <title>TikTok OAuth Callback</title>
-  <style>body{font-family:system-ui;margin:2rem;max-width:700px}</style>
-  <h1>TikTok OAuth Callback</h1>
-  <p>Code d'autorisation :</p>
-  <pre id="code" style="padding:12px;background:#f5f5f5;border:1px solid #ddd"></pre>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="robots" content="noindex,nofollow"/>
+  <style>
+    :root { --bg:#0b0d12; --card:#111727; --muted:#aab2c5; --pri:#76a0ff; --ok:#00c853; --err:#ff5252; }
+    *{box-sizing:border-box}
+    body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:linear-gradient(180deg,#0b0d12,#0e1420 60%,#0b0d12);color:#e8eef9}
+    .wrap{max-width:780px;margin:48px auto;padding:0 20px}
+    .card{background:linear-gradient(180deg,#121a2b,#0f1626 60%,#0e1423);border:1px solid #1f2b44;border-radius:14px;padding:22px 20px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+    h1{margin:0 0 10px;font-weight:700;letter-spacing:.2px}
+    p{color:#c8d2e6;line-height:1.55}
+    .row{display:flex;gap:14px;flex-wrap:wrap}
+    .kv{flex:1 1 240px;background:#0e1524;border:1px solid #1b2740;border-radius:10px;padding:12px}
+    .kv b{display:block;color:#9db1d9;font-size:12px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+    .code{white-space:pre-wrap;word-break:break-all;background:#0c1220;border:1px dashed #283859;border-radius:10px;padding:14px;font-family:ui-monospace,Consolas,monospace}
+    .btns{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+    button{cursor:pointer;border:1px solid #29406a;background:#112041;color:#e8eef9;border-radius:10px;padding:10px 14px;font-weight:600}
+    button:hover{background:#182a4d}
+    .tag{display:inline-block;border:1px solid #29406a;background:#0e1830;border-radius:999px;padding:6px 10px;margin:4px 6px 0 0;color:#cfe0ff}
+    .muted{color:#9fb0c8}
+    .ok{color:var(--ok)} .err{color:var(--err)}
+    .notice{margin-top:10px;font-size:14px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>TikTok OAuth Callback</h1>
+      <p class="muted">Voici le résultat de la redirection OAuth. Copie le <b>code</b> et exécute la commande affichée ci-dessous dans ton terminal.</p>
+
+      <div class="row">
+        <div class="kv">
+          <b>État (`state`)</b>
+          <div id="state" class="code">(inconnu)</div>
+        </div>
+        <div class="kv">
+          <b>Scopes</b>
+          <div id="scopes"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px">
+        <b>Code d'autorisation :</b>
+        <div id="code" class="code" style="margin-top:6px">(absent)</div>
+        <div class="btns">
+          <button id="copy">Copier le code</button>
+          <button id="copycmd">Copier la commande PowerShell</button>
+        </div>
+        <div class="notice muted" id="tip"></div>
+      </div>
+
+      <div style="margin-top:18px">
+        <b>Erreur (si présente) :</b>
+        <div id="error" class="code">(aucune)</div>
+      </div>
+    </div>
+  </div>
+
   <script>
-    const p=new URLSearchParams(location.search);
-    const code=p.get("code")||"(absent)";
-    document.getElementById("code").textContent=code;
+    // Support query (?code=...) et fragment (#code=...) au cas où
+    const qp = new URLSearchParams(location.search || "");
+    const hp = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+
+    const getFirst = (k) => qp.get(k) || hp.get(k);
+
+    const code  = getFirst("code")  || "";
+    const state = getFirst("state") || "(absent)";
+    const scope = getFirst("scope") || getFirst("scopes") || "";
+
+    const err        = getFirst("error") || "";
+    const errDesc    = getFirst("error_description") || getFirst("error_msg") || "";
+
+    document.getElementById("state").textContent = state;
+    document.getElementById("code").textContent  = code || "(absent)";
+
+    const scopesBox = document.getElementById("scopes");
+    if (scope) {
+      scope.split(/[ +]/).filter(Boolean).forEach(s => {
+        const span = document.createElement("span");
+        span.className = "tag";
+        span.textContent = s;
+        scopesBox.appendChild(span);
+      });
+    } else {
+      scopesBox.innerHTML = '<span class="muted">(non transmis)</span>';
+    }
+
+    const errBox = document.getElementById("error");
+    if (err) {
+      errBox.innerHTML = "error=" + err + (errDesc ? " · description=" + errDesc : "");
+      errBox.classList.add("err");
+    } else {
+      errBox.textContent = "(aucune)";
+      errBox.classList.add("ok");
+    }
+
+    // Conseils PowerShell
+    const tip = document.getElementById("tip");
+    tip.innerHTML = "Sous PowerShell, le code doit être <b>entre guillemets</b> s’il contient des caractères spéciaux (*, !, etc.).";
+
+    // Bouton "Copier le code"
+    document.getElementById("copy").onclick = async () => {
+      if (!code) return alert("Pas de code à copier.");
+      await navigator.clipboard.writeText(code);
+      alert("Code copié dans le presse-papiers.");
+    };
+
+    // Bouton "Copier la commande"
+    document.getElementById("copycmd").onclick = async () => {
+      const cmd = `python tiktok_poster.py --code "${code || 'COLLE_TON_CODE_ICI'}"`;
+      await navigator.clipboard.writeText(cmd);
+      alert("Commande copiée. Colle-la dans PowerShell.");
+    };
   </script>
+</body>
 </html>
